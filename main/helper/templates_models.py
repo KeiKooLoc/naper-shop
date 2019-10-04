@@ -1,9 +1,8 @@
-from telegram.error import TelegramError
-from .strings import strings
-from db import products_table, orders_table
-from config import conf
 from bson import ObjectId
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
+from config import conf
+from .strings import strings
+from db import products_table, orders_table
 
 
 class Order(object):
@@ -56,6 +55,8 @@ class Order(object):
     def send_admin_template(self, update, context, extra_str="", kb=None):
         order_status = "⛔ ️🚫Продан" if self.order["status"] else "⚠ В ожидании ️"
         p = Product(_id=self.order["product_id"])
+        if not p.product:
+            p = Product(product_dict=self.order["product_object"])
         context.user_data["to_delete"].append(
             context.bot.send_photo(update.effective_chat.id,
                                    p.product["image_id"],
@@ -108,6 +109,8 @@ class Product(object):
             if type(_id) == str:
                 _id = ObjectId(_id)
             self.product = products_table.find_one({"_id": _id})
+            if not self.product:
+                self.deleted = True
         if product_dict:
             self.product = product_dict
 

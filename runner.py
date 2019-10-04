@@ -1,13 +1,12 @@
-from telegram.ext import Updater
 import logging
 from config import conf
-# from main import START_HANDLER, SHOP_HANDLER, ADMIN_START_HANDLER, ADD_PRODUCT_HANDLER, BACK_TO_USER_MENU, \
-#     USER_ORDERS_HANDLER, ADMIN_ORDERS_HANDLER, CONTACTS_HANDLER, ADMIN_PRODUCTS_HANDLER, TERMS_HANDLER
+from telegram.ext import Updater
 
-from main.user import START_HANDLER, CONTACTS_HANDLER, SHOP_HANDLER, USER_ORDERS_HANDLER, TERMS_HANDLER, \
-    BACK_TO_USER_MENU
-from main.admin import ADMIN_START_HANDLER, ADD_PRODUCT_HANDLER, ADMIN_ORDERS_HANDLER, \
-    ADMIN_PRODUCTS_HANDLER
+from main.user import (START_HANDLER, CONTACTS_HANDLER, SHOP_HANDLER,
+                       USER_ORDERS_HANDLER, TERMS_HANDLER, BACK_TO_USER_MENU)
+
+from main.admin import (ADMIN_START_HANDLER, ADD_PRODUCT_HANDLER,
+                        ADMIN_ORDERS_HANDLER, ADMIN_PRODUCTS_HANDLER)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
