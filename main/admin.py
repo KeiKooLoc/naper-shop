@@ -2,21 +2,14 @@ from telegram.ext import CallbackContext, CommandHandler, \
     ConversationHandler, CallbackQueryHandler, MessageHandler, Filters, RegexHandler
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from db import orders_table, products_table
-# from helper import delete_messages, product_template, order_template, admin_order_template, send_product_template, \
-#     Notification, send_admin_order_template, Order
-from .helper.helper import delete_messages, product_template, admin_order_template, send_product_template, \
-    Notification, send_admin_order_template
-from .helper.templates_models import Order
-
+from .helper.helper import delete_messages
+from .helper.templates_models import Order, Product
 import datetime
 from config import conf
-from math import ceil
 import logging
 from bson import ObjectId
-# from strings import strings
 from .helper.strings import strings
 from .user import Main
-from math import ceil
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -121,9 +114,12 @@ class Admin(Main):
     def confirm_adding(self, update: Update, context: CallbackContext):
         delete_messages(update, context)
         context.user_data["description"] = update.message.text
-        send_product_template(update, context, context.user_data,
-                              f"\n\n{strings['confirm_adding']}",
-                              keyboards["confirm_adding_product"])
+        # send_product_template(update, context, context.user_data,
+        #                       f"\n\n{strings['confirm_adding']}",
+        #                       keyboards["confirm_adding_product"])
+        Product(product_dict=context.user_data).send_product_template(
+            update, context, f"\n\n{strings['confirm_adding']}",
+            keyboards["confirm_adding_product"])
 
         return CONFIRM_ADDING
 
@@ -138,7 +134,8 @@ class Admin(Main):
              "sold": False,
              "deleted": False}).inserted_id
         # send_product_template(update, context, context.user_data, strings['success_adding'])
-        Notification.new_product(update, context, _id)
+        # Notification.new_product(update, context, _id)
+        Product(_id=_id).new_product_notification(context)
         msg = strings["success_adding"]
         return self.back_to_main_menu(update, context, msg)
 
@@ -171,8 +168,11 @@ class Admin(Main):
 
         # SENDING DATA
         # Title
+        # title = f"{strings['select_buyer_title']}" \
+        #         f"\n{product_template(context.user_data['product'])}" \
+        #     if choose_kb else strings["orders_title"].format(all_data.count())
         title = f"{strings['select_buyer_title']}" \
-                f"\n{product_template(context.user_data['product'])}" \
+                f"\n{Product(product_dict=context.user_data['product']).template()}" \
             if choose_kb else strings["orders_title"].format(all_data.count())
         context.user_data['to_delete'].append(
             context.bot.send_message(update.callback_query.message.chat_id,
@@ -190,13 +190,14 @@ class Admin(Main):
             if choose_kb:
                 Order(order_dict=order).send_short_template(update, context)
             else:
-                product = products_table.find_one({"_id": order["product_id"]})
-                context.user_data['to_delete'].append(
-                    context.bot.send_photo(update.effective_chat.id,
-                                           product["image_id"],
-                                           admin_order_template(order, product),
-                                           reply_markup=kb,
-                                           parse_mode=ParseMode.MARKDOWN))
+                # product = products_table.find_one({"_id": order["product_id"]})
+                # context.user_data['to_delete'].append(
+                #     context.bot.send_photo(update.effective_chat.id,
+                #                            product["image_id"],
+                #                            admin_order_template(order, product),
+                #                            reply_markup=kb,
+                #                            parse_mode=ParseMode.MARKDOWN))
+                Order(order_dict=order).send_admin_template(update, context)
         # Pages navigation
         context.user_data['to_delete'].append(
             context.bot.send_message(update.effective_chat.id,
@@ -314,7 +315,9 @@ class Admin(Main):
             else:
                 kb[0].append(InlineKeyboardButton(strings["mark_as_sold_btn"],
                                                   callback_data=f"mark_as_sold/{product['_id']}"))
-            send_product_template(update, context, product, kb=InlineKeyboardMarkup(kb))
+            # send_product_template(update, context, product, kb=InlineKeyboardMarkup(kb))
+            Product(product_dict=product).send_product_template(
+                update, context, kb=InlineKeyboardMarkup(kb))
         # Pages navigation
         context.user_data['to_delete'].append(
             context.bot.send_message(update.effective_chat.id,
@@ -326,10 +329,12 @@ class Admin(Main):
         delete_messages(update, context)
         context.user_data["product"] = products_table.find_one(
             {"_id": ObjectId(update.callback_query.data.split('/')[1])})
-        send_product_template(update, context,
-                              context.user_data["product"],
-                              strings["confirm_delete"],
-                              keyboards["confirm_delete_product"])
+        # send_product_template(update, context,
+        #                       context.user_data["product"],
+        #                       strings["confirm_delete"],
+        #                       keyboards["confirm_delete_product"])
+        Product(product_dict=context.user_data["product"]).send_product_template(
+            update, context, strings["confirm_delete"], keyboards["confirm_delete_product"])
         return CONFIRM_DELETE_PRODUCT
 
     def finish_delete_product(self, update: Update, context: CallbackContext):
@@ -370,10 +375,13 @@ class Admin(Main):
     def confirm_sell(self, update: Update, context: CallbackContext):
         delete_messages(update, context)
         context.user_data["order_id"] = update.callback_query.data.split('/')[1]
-        send_admin_order_template(update, context,
-                                  context.user_data["order_id"],
-                                  strings["confirm_sell_product"],
-                                  keyboards["confirm_sell_product"])
+        # send_admin_order_template(update, context,
+        #                           context.user_data["order_id"],
+        #                           strings["confirm_sell_product"],
+        #                           keyboards["confirm_sell_product"])
+        Order(_id=context.user_data["order_id"]).send_admin_template(
+            update, context, strings["confirm_sell_product"],
+            keyboards["confirm_sell_product"])
         return CONFIRM_SELL
 
     def finish_sell_not_tel(self, update: Update, context: CallbackContext):
@@ -386,7 +394,8 @@ class Admin(Main):
     def finish_sell(self, update: Update, context: CallbackContext):
         delete_messages(update, context)
         orders_table.update_one({"_id": ObjectId(context.user_data["order_id"])},
-                                {"$set": {"status": True}})
+                                {"$set": {"status": True,
+                                          "product_object": context.user_data["product"]}})
         products_table.update_one({"_id": context.user_data["product"]["_id"]},
                                   {"$set": {"sold": True}})
         orders_table.delete_many({"product_id": context.user_data["product"]["_id"],

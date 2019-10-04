@@ -100,6 +100,6 @@ strings = dict(
     # BACK BUTTON
     back="🔙Назад",
     # NOTIFICATIONS
-    new_order_notification="Новый заказ!",
+    new_order_notification="\n\n*Новый заказ!*",
     new_product_notification="",
 )

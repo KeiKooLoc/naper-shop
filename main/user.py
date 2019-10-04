@@ -2,18 +2,15 @@ from telegram.ext import CallbackContext, CommandHandler, \
     ConversationHandler, CallbackQueryHandler, MessageHandler, Filters, RegexHandler
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from db import orders_table, products_table
-# from helper import delete_messages, product_template, order_template, admin_order_template, send_product_template, \
-#     Notification, send_user_order_template
-from .helper.helper import delete_messages, product_template, order_template, admin_order_template, send_product_template, \
-    Notification, send_user_order_template
-from .helper.templates_models import Order
+from .helper.helper import delete_messages
+from .helper.templates_models import Order, Product
 import datetime
 from config import conf
 from math import ceil
 import logging
 from bson import ObjectId
-# from strings import strings
 from .helper.strings import strings
+import time
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -168,7 +165,7 @@ class User(Main):
         # Products
         for product in data_to_send:
             # todo: fix this coz of repeating in template
-            extra_string = ""
+            extra_str = ""
             kb = None
             if not product["sold"]:
                 kb = InlineKeyboardMarkup(
@@ -178,9 +175,10 @@ class User(Main):
                     {"user_id": update.effective_user.id,
                      "product_id": product["_id"],
                      "deleted_on_user_side": False}):
-                extra_string += "\n\n_У вас уже есть заказ с данным товаром_"
+                extra_str += "\n\n_У вас уже есть заказ с данным товаром_"
                 kb = None
-            send_product_template(update, context, product, extra_string, kb)
+            Product(product_dict=product).send_product_template(update, context, extra_str, kb)
+            # send_product_template(update, context, product, extra_string, kb)
         # Pages navigation
         context.user_data['to_delete'].append(
             context.bot.send_message(update.effective_chat.id,
@@ -192,8 +190,10 @@ class User(Main):
         delete_messages(update, context)
         context.user_data["order"] = products_table.find_one(
             {'_id': ObjectId(update.callback_query.data.split('/')[1])})
-        send_product_template(update, context, context.user_data["order"],
-                              strings["confirm_order"], keyboards["confirm_order_kb"])
+        Product(product_dict=context.user_data["order"]).send_product_template(
+            update, context, strings["confirm_order"], keyboards["confirm_order_kb"])
+        # send_product_template(update, context, context.user_data["order"],
+        #                       strings["confirm_order"], keyboards["confirm_order_kb"])
         return CONFIRM_ORDER
 
     def finish_making_order(self, update: Update, context: CallbackContext):
@@ -230,7 +230,10 @@ class User(Main):
              "status": False,
              "sold_timestamp": None,
              "deleted_on_user_side": False}).inserted_id
-        Notification.new_order(update, context, _id)
+        # Notification.new_order(update, context, _id)
+        # time.sleep(0.5)
+        Order(_id=_id).new_order_notification(context)
+
         msg = strings["order_created"]
         return self.back_to_main_menu(update, context, msg)
 
@@ -273,18 +276,20 @@ class User(Main):
             kb = None if order["status"] else InlineKeyboardMarkup(
                 [[InlineKeyboardButton(strings["delete_order_btn"],
                                        callback_data=f"delete_order/{order['_id']}")]])
+            Order(order_dict=order).send_user_template(update, context, kb=kb)
+
             # if not order["status"]:
             #     kb = InlineKeyboardMarkup(
             #         [[InlineKeyboardButton(strings["delete_order_btn"],
             #                                callback_data=f"delete_order/{order['_id']}")]])
 
-            product = products_table.find_one({"_id": order["product_id"]})
-            context.user_data['to_delete'].append(
-                context.bot.send_photo(update.effective_chat.id,
-                                       product["image_id"],
-                                       order_template(order, product),
-                                       reply_markup=kb,
-                                       parse_mode=ParseMode.MARKDOWN))
+            # product = products_table.find_one({"_id": order["product_id"]})
+            # context.user_data['to_delete'].append(
+            #     context.bot.send_photo(update.effective_chat.id,
+            #                            product["image_id"],
+            #                           order_template(order, product),
+            #                            reply_markup=kb,
+            #                            parse_mode=ParseMode.MARKDOWN))
         # Pages navigation
         context.user_data['to_delete'].append(
             context.bot.send_message(update.effective_chat.id,
@@ -296,28 +301,30 @@ class User(Main):
         delete_messages(update, context)
         context.user_data["order"] = orders_table.find_one(
             {"_id": ObjectId(update.callback_query.data.split('/')[1])})
-        product = products_table.find_one(
-            {"_id": context.user_data["order"]["product_id"]})
+        # product = products_table.find_one(
+        #     {"_id": context.user_data["order"]["product_id"]})
         # todo
         # if context.user_data["order"] and product:
         #     pass
         # else:
         #     "ваш заказ уже удалён потому что товар был продан или удалён"
 
-        context.user_data["to_delete"].append(
-            context.bot.send_photo(update.effective_chat.id,
-                                   context.user_data["order"]["product_object"]["image_id"],
-                                   order_template(context.user_data["order"], product) +
-                                   strings["delete_order"],
-                                   reply_markup=keyboards["confirm_delete_order"],
-                                   parse_mode=ParseMode.MARKDOWN))
+        # context.user_data["to_delete"].append(
+        #     context.bot.send_photo(update.effective_chat.id,
+        #                            context.user_data["order"]["product_object"]["image_id"],
+        #                            order_template(context.user_data["order"], product) +
+        #                            strings["delete_order"],
+        #                            reply_markup=keyboards["confirm_delete_order"],
+        #                            parse_mode=ParseMode.MARKDOWN))
+        Order(order_dict=context.user_data["order"]).send_user_template(
+            update, context, strings["delete_order"], keyboards["confirm_delete_order"])
         return CONFIRM_DELETE_ORDER
 
     def finish_delete_order(self, update: Update, context: CallbackContext):
         delete_messages(update, context)
         # orders_table.update_one({"_id": ObjectId(update.callback_query.data.split('/')[1])},
         #                         {"$set": {"deleted_on_user_side": True}})
-        orders_table.delete_one({"_id": ObjectId(update.callback_query.data.split('/')[1])})
+        orders_table.delete_one({"_id": context.user_data["order"]["_id"]})
         update.callback_query.answer(text=strings["blink_success_delete_order"])
         return self.my_orders(update, context)
 

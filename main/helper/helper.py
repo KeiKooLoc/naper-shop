@@ -1,9 +1,10 @@
 from telegram.error import TelegramError
-from strings import strings
+from .strings import strings
 from db import products_table, orders_table
 from config import conf
 from bson import ObjectId
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
+from .templates_models import Order
 
 
 def delete_messages(update, context):
@@ -23,21 +24,8 @@ def delete_messages(update, context):
     else:
         context.user_data['to_delete'] = list()
 
-
+"""
 def product_template(product):
-    """
-    if product["_id"]:
-        if orders_table.find_one({"product_id": product["_id"],
-                                  "status": True}):
-            product_status = "Продан⛔ ️"
-        else:
-            product_status = "В наличии ✅"
-
-        return strings["product_template_2"].format(
-            product["name"], product["price"], product["description"], product_status)
-    return strings["product_template"].format(
-        product["name"], product["price"], product["description"])
-    """
     if product:
         if product.get("_id"):
             if product["sold"]:
@@ -111,7 +99,7 @@ def send_admin_order_template(update, context, order_id, extra_str="", kb=None):
                                parse_mode=ParseMode.MARKDOWN))
 
 
-"""def send_short_order(update, context, order):
+'''def send_short_order(update, context, order):
     # if type(order_id) == str:
     #     order_id = ObjectId(order_id)
 
@@ -123,16 +111,17 @@ def send_admin_order_template(update, context, order_id, extra_str="", kb=None):
                                      order["user_mention_markdown"],
                                      str(order['creation_timestamp']).split('.')[0]),
                                  reply_markup=kb,
-                                 parse_mode=ParseMode.MARKDOWN))"""
+                                 parse_mode=ParseMode.MARKDOWN))'''
 
 
 class Notification:
     @staticmethod
-    def new_order(update, context, _id):
-        extra_str = strings["new_order_notification"]
-        product = products_table.find_one({"_id": _id})
+    def new_order(update, context, order_id):
+        # extra_str = strings["new_order_notification"]
+        # product = products_table.find_one({"_id": _id})
         for chat_id in conf["ADMINS"]:
-            send_product_template(update, context, product, extra_str, chat_id=chat_id)
+            Order(_id=order_id).send_admin_template(
+                update, context, strings["new_order_notification"], chat_id=chat_id)
 
     @staticmethod
     def new_product(update, context, _id):
@@ -147,3 +136,4 @@ class Notification:
     @staticmethod
     def order_canceled(update, context):
         pass
+"""
