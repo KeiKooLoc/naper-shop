@@ -363,7 +363,7 @@ class Admin(Main):
         orders_table.delete_many({"product_id": context.user_data["product"]["_id"],
                                   "status": False})
         update.callback_query.answer(text=strings["blink_product_sold"])
-        self.back_to_main_menu(update, context)
+        return self.back_to_main_menu(update, context)
 
     def finish_sell(self, update: Update, context: CallbackContext):
         delete_messages(update, context)
